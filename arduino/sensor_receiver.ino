@@ -1,8 +1,9 @@
 float temperature = 0;
 int lightLevel = 1000;
+float humidity = 50.0;
 int LED_pin = 6;
 enum state {NORMAL, OVERHEAT, DARK, OVERHEAT_DARK, FAULT};
-enum FaultCode {NO_FAULT,INVALID_TEMP,TEMP_RANGE,INVALID_LIGHT,LIGHT_RANGE};
+enum FaultCode {NO_FAULT,INVALID_TEMP,TEMP_RANGE,INVALID_LIGHT,LIGHT_RANGE,INVALID_HUMIDITY,HUMIDITY_RANGE};
 state systemState = NORMAL;
 FaultCode fault = NO_FAULT;
 
@@ -91,6 +92,31 @@ void loop() {
                 return;
             }
             lightLevel = new_lightLevel;
+
+        }
+
+        //Humidity message
+        else if (data.startsWith("HUMIDITY:")){
+            String value = data.substring(9);
+
+            if(!isValidNumber(value)){
+                systemState = FAULT;
+                fault = INVALID_HUMIDITY;
+                digitalWrite(LED_pin, LOW);
+                sendFault();
+                return;
+            }
+            float new_humidity = value.toFloat();
+
+            if(new_humidity < 0 || new_humidity > 100){
+                systemState = FAULT;
+                fault = HUMIDITY_RANGE;
+                digitalWrite(LED_pin, LOW);
+                sendFault();
+                return;
+            }
+            humidity = new_humidity;
+            
 
         }    
 
@@ -199,6 +225,16 @@ void sendFault(){
         case LIGHT_RANGE:
             Serial.println("LIGHT_RANGE");
             break;
+        
+        case INVALID_HUMIDITY:
+            Serial.println("INVALID_HUMIDITY");
+            break;
+
+        case HUMIDITY_RANGE:
+            Serial.println("HUMIDITY_RANGE");
+            break;
+        
+        
 
         default:
             Serial.println("UNKNOWN");
