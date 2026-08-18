@@ -9,6 +9,7 @@ from scenarios import get_scenario_targets
 from simulator import update_sensor_values
 from serial_manager import SerialManager
 from graph_manager import GraphManager
+from data_logger import DataLogger
 
 
 from PyQt6.QtWidgets import (
@@ -25,7 +26,12 @@ from PyQt6.QtWidgets import (
 #defining the window close event, particularly making sure that we disconnect the arduino.
 class SensorSimulationWindow(QWidget):
     def closeEvent(self, event):
+        global logging_active
         timer.stop()
+
+        if logging_active:
+            data_logger.stop_logging()
+            logging_active = False
 
         if serial_manager.is_connected():
             try:
@@ -54,6 +60,8 @@ connection_label = QLabel("Arduino: Disconnected")
 system_state_label = QLabel("System State: --")
 scenario_status_label = QLabel("Scenario Status --")
 fault_status_label = QLabel("Fault Status: None")
+logging_status_label = QLabel("Logging Status: Off")
+logging_file_label = QLabel("File: --")
 
 connect_button =  QPushButton("Connect Arduino")
 disconnect_button = QPushButton("Disconnect Arduino")
@@ -61,8 +69,12 @@ start_button = QPushButton("Start Simulation")
 stop_button = QPushButton("Stop Simulation")
 reset_button = QPushButton("Reset Simulation")
 run_scenario_button = QPushButton("Run Scenario")
+start_logging_button = QPushButton("Start Logging")
+stop_logging_button = QPushButton("Stop Logging")
 
+#managers
 graph_manager = GraphManager()
+data_logger = DataLogger()
 
 mode_box = QComboBox()
 mode_box.addItems(["Automatic", "Manual"])
@@ -114,17 +126,22 @@ target_temp_input.setText("25")
 target_light_input.setText("400")
 target_humidity_input.setText("50")
 
-start_time = None
+
 
 
 #initialized values
 temperature = 22.0
 light = 700
 humidity = 50.0
+current_system_state = "Unknown"
+current_fault = "None"
 serial_manager = SerialManager() #default constructor in order to set the arduino up.
 active_scenario = None
 scenario_start_time = None
 fault_latched = False
+logging_active = False
+start_time = None
+
 
 saved_target_temp = "25"
 saved_target_light = "400"
@@ -242,7 +259,7 @@ def send_to_arduino(sensor, value):
 
 #dealing with the manual values (updating the labels, graph, and sending to arduino)
 def send_manual_values():
-    global start_time
+    global start_time, logging_active, current_system_state, current_fault
 
     if mode_box.currentText() != "Manual":
         return
@@ -273,17 +290,24 @@ def send_manual_values():
 
         update_graphs(temp_value, light_value, humidity_value)
 
+        if logging_active:
+            current_time = time.time() - start_time
+            data_logger.log_reading(current_time, temp_value, light_value, humidity_value,
+                                    current_system_state, "None", current_fault)
+
+
     except ValueError:
         print("Invalid manual input")
 
 #updating the graphs, we only show the last 30 seconds history
 def update_graphs(temp_value, light_value, humidity_value):
+    global start_time
     current_time = time.time() - start_time
     graph_manager.add_reading(current_time, temp_value, light_value, humidity_value)
     
 #dealing with updating the sensors for automatic.
 def update_sensors():
-    global temperature, light, humidity
+    global temperature, light, humidity, logging_active, current_system_state, active_scenario, start_time, current_fault
     scenario_targets = get_current_scenario_targets()
 
     if scenario_targets == "FINISHED":
@@ -312,8 +336,15 @@ def update_sensors():
     send_to_arduino("LIGHT", light)
     send_to_arduino("HUMIDITY", f"{humidity:.1f}")
 
-
     update_graphs(temperature, light, humidity)
+
+    if logging_active:
+        current_time = time.time() - start_time
+
+        data_logger.log_reading(current_time, temperature, light, humidity, 
+                                current_system_state, 
+                                active_scenario if active_scenario is not None else "None",
+                                current_fault)
 
 #showing the available arduino ports.
 def refresh_ports():
@@ -347,6 +378,8 @@ def update_ui_state():
     manual_humidity_input.setEnabled(connected and not automatic)
     send_manual_button.setEnabled(connected and not automatic and not fault_latched)
     reset_button.setEnabled(connected)
+    start_logging_button.setEnabled(connected and not logging_active)
+    stop_logging_button.setEnabled(logging_active)
 
     scenario_box.setEnabled(connected and automatic and not running)
     run_scenario_button.setEnabled(connected and automatic and not running and not fault_latched)
@@ -360,7 +393,7 @@ def update_ui_state():
 
 #resetting the simulation
 def reset_simulation():
-    global temperature,light,start_time,fault_latched
+    global temperature,light,humidity,start_time,fault_latched,current_fault,current_system_state
 
     timer.stop()
 
@@ -372,8 +405,17 @@ def reset_simulation():
                 print("Arduino:", response)
 
             if response == "System Reset":
+                current_system_state = "NORMAL"
+                current_fault = "NONE"
                 fault_latched = False
                 fault_status_label.setText("Fault Status: None")
+
+            if (response == "System Reset" and start_time is not None and logging_active):
+                current_time = time.time() - start_time
+                data_logger.log_reading(current_time, temperature, light, 
+                                        humidity, current_system_state, 
+                                        active_scenario if active_scenario is not None else "None",
+                                        "RESET")
 
            
         except serial.SerialException as e:
@@ -384,6 +426,8 @@ def reset_simulation():
     light = 700
     humidity = 50.0
     start_time = None
+    current_system_state = "UNKNOWN"
+    current_fault = "None"
 
     temperature_label.setText("Temperature: -- °C")
     light_label.setText("Light Level: --")
@@ -478,6 +522,7 @@ def finish_scenario():
 
     update_ui_state()
 
+#fault injection
 def inject_fault():
     
     fault_type = fault_box.currentText()
@@ -503,8 +548,9 @@ def inject_fault():
 
     handle_arduino_response(response)
 
+#handle the arduino responses on Python.
 def handle_arduino_response(response):
-    global fault_latched
+    global fault_latched, current_system_state, current_fault, logging_active, temperature, light, humidity, start_time, active_scenario
     if response is None:
         return
 
@@ -512,6 +558,7 @@ def handle_arduino_response(response):
 
     if response.startswith("STATE:"):
         state = response.split(":", 1)[1].strip()
+        current_system_state = state
 
         system_state_label.setText(
             f"System State: {state}"
@@ -532,6 +579,8 @@ def handle_arduino_response(response):
     elif response.startswith("FAULT:"):
         fault_latched = True
         fault = response.split(":", 1)[1].strip()
+        current_system_state = "FAULT"
+        current_fault = fault
 
         system_state_label.setText("System State: FAULT")
 
@@ -553,8 +602,41 @@ def handle_arduino_response(response):
             f"Fault Status: {message} - Reset required"
         )
 
+        if (logging_active and start_time is not None):
+            current_time = time.time() - start_time
+            data_logger.log_reading(current_time,temperature,light,humidity,current_system_state,
+                                    active_scenario if active_scenario is not None else "None",
+                                    current_fault)
+
         timer.stop()
         update_ui_state()
+
+#start the logging
+def start_logging():
+    global logging_active
+
+    data_logger.start_logging()
+    logging_active = True
+
+    print("Logging started:", data_logger.file_path)
+    logging_status_label.setText("Logging Status: ON")
+    logging_file_label.setText(f"File: {data_logger.file_path}")
+
+    update_ui_state()
+
+#stop the logging
+def stop_logging():
+    global logging_active
+
+    data_logger.stop_logging()
+    logging_active = False
+
+    print("Logging stopped")
+    logging_status_label.setText("Logging Status: OFF")
+    logging_file_label.setText(f"File: --")
+
+    update_ui_state()
+
 
 
 
@@ -614,9 +696,15 @@ layout.addWidget(humidity_label)
 layout.addWidget(system_state_label)
 layout.addWidget(scenario_status_label)
 layout.addWidget(fault_status_label)
+layout.addWidget(logging_status_label)
+layout.addWidget(logging_file_label)
 
 layout.addWidget(start_button)
 layout.addWidget(stop_button)
+
+layout.addWidget(QLabel("Data Logging:"))
+layout.addWidget(start_logging_button)
+layout.addWidget(stop_logging_button)
 
 window_layout = QVBoxLayout(window)
 window_layout.addWidget(scroll_area)
@@ -636,6 +724,8 @@ refresh_ports_button.clicked.connect(refresh_ports)
 reset_button.clicked.connect(reset_simulation)
 run_scenario_button.clicked.connect(run_scenario)
 inject_fault_button.clicked.connect(inject_fault)
+start_logging_button.clicked.connect(start_logging)
+stop_logging_button.clicked.connect(stop_logging)
 
 refresh_ports()
 update_ui_state()
