@@ -432,7 +432,7 @@ def reset_simulation():
     temperature_label.setText("Temperature: -- °C")
     light_label.setText("Light Level: --")
     humidity_label.setText("Humidity: -- %")
-    system_state_label.setText("System State: --")
+    system_state_label.setText("System State: Normal")
     fault_status_label.setText("Fault Status: None")
     scenario_status_label.setText("Scenario Status --")
 

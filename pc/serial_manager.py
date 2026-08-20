@@ -23,7 +23,7 @@ class SerialManager():
         self.arduino = None
 
         if response == "":
-            return "No response from arduino"
+            return "Disconnected"
 
         return response
 
