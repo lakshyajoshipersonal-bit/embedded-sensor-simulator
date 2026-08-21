@@ -2,7 +2,7 @@ import sys
 import serial
 import time
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, pyqtSignal, QThread
 
 
 from scenarios import get_scenario_targets
@@ -10,7 +10,7 @@ from simulator import update_sensor_values
 from serial_manager import SerialManager
 from graph_manager import GraphManager
 from data_logger import DataLogger
-
+from serial_worker import SerialWorker
 
 from PyQt6.QtWidgets import (
     QApplication,
@@ -25,23 +25,29 @@ from PyQt6.QtWidgets import (
 
 #defining the window close event, particularly making sure that we disconnect the arduino.
 class SensorSimulationWindow(QWidget):
+    send_serial_command = pyqtSignal(str)
+    disconnect_serial = pyqtSignal()
     def closeEvent(self, event):
-        global logging_active
+        global logging_active, closing_app
         timer.stop()
 
         if logging_active:
             data_logger.stop_logging()
             logging_active = False
 
-        if serial_manager.is_connected():
+        if serial_manager.is_connected() and not closing_app:
             try:
-                response = serial_manager.disconnect()
-
-                if response is not None:
-                    print("Arduino:", response)
+                closing_app = True
+                window.disconnect_serial.emit()
+                event.ignore() #dont close the window yet.
+                return
 
             except serial.SerialException:
                 pass
+        #serial work finished, so stop the worker thread
+        serial_thread.quit()
+        serial_thread.wait()
+
         event.accept()
 
 #define the whole window and added features along with some defaults.
@@ -126,7 +132,11 @@ target_temp_input.setText("25")
 target_light_input.setText("400")
 target_humidity_input.setText("50")
 
-
+serial_manager = SerialManager() 
+serial_worker = SerialWorker(serial_manager)
+serial_thread = QThread() #create the thread
+serial_worker.moveToThread(serial_thread) #move the slot functions of serial_worker to serial_thread
+serial_thread.start()
 
 
 #initialized values
@@ -135,12 +145,13 @@ light = 700
 humidity = 50.0
 current_system_state = "Unknown"
 current_fault = "None"
-serial_manager = SerialManager() #default constructor in order to set the arduino up.
 active_scenario = None
 scenario_start_time = None
 fault_latched = False
 logging_active = False
 start_time = None
+reset_elapsed_time = None
+closing_app = False
 
 
 saved_target_temp = "25"
@@ -171,15 +182,11 @@ def connect_arduino():
 #disconnect the arduino
 def disconnect_arduino():
     try:
-        response = serial_manager.disconnect()
-        if response is not None:
-            print("Arduino:", response)
+        window.disconnect_serial.emit()
 
     except serial.SerialException as e:
         print("Disconnect failed:", e)
 
-    connection_label.setText("Arduino: Disconnected")
-    update_ui_state()
     
 
 #for starting the automatic simulation whether sceanrio or user defined targets.
@@ -243,9 +250,8 @@ def send_to_arduino(sensor, value):
     try:
         message = f"{sensor}:{value}"
 
-        response = serial_manager.send_command(message)
-
-        handle_arduino_response(response)
+        window.send_serial_command.emit(message)
+        
 
     except serial.SerialException as e:
         print("Arduino connection lost:", e)
@@ -393,35 +399,23 @@ def update_ui_state():
 
 #resetting the simulation
 def reset_simulation():
-    global temperature,light,humidity,start_time,fault_latched,current_fault,current_system_state
+    global temperature,light,humidity,start_time,fault_latched,current_fault,current_system_state, reset_elapsed_time
 
     timer.stop()
 
     if serial_manager.is_connected():
         try:
-            response = serial_manager.send_command("RESET")
+            window.send_serial_command.emit("RESET")
 
-            if response is not None:
-                print("Arduino:", response)
-
-            if response == "System Reset":
-                current_system_state = "NORMAL"
-                current_fault = "NONE"
-                fault_latched = False
-                fault_status_label.setText("Fault Status: None")
-
-            if (response == "System Reset" and start_time is not None and logging_active):
-                current_time = time.time() - start_time
-                data_logger.log_reading(current_time, temperature, light, 
-                                        humidity, current_system_state, 
-                                        active_scenario if active_scenario is not None else "None",
-                                        "RESET")
-
-           
         except serial.SerialException as e:
             print("Reset failed:", e)
 
-
+    #store the relapsed time
+    if start_time is not None:
+        reset_elapsed_time = time.time() - start_time
+    else:
+        reset_elapsed_time = None
+    
     temperature = 22.0
     light = 700
     humidity = 50.0
@@ -433,11 +427,7 @@ def reset_simulation():
     light_label.setText("Light Level: --")
     humidity_label.setText("Humidity: -- %")
     system_state_label.setText("System State: Normal")
-    fault_status_label.setText("Fault Status: None")
     scenario_status_label.setText("Scenario Status --")
-
-    fault_latched = False
-    fault_status_label.setText("Fault Status: None")
 
     graph_manager.reset()
 
@@ -501,13 +491,7 @@ def finish_scenario():
 
     if serial_manager.is_connected():
         try:
-            response = serial_manager.send_command("RESET")
-
-            
-
-            if response is not None:
-                print("Arduino:", response)
-
+            window.send_serial_command.emit("RESET")
         except serial.SerialException as e:
             print("Scenario cleanup failed:", e)
 
@@ -528,29 +512,28 @@ def inject_fault():
     fault_type = fault_box.currentText()
 
     if (fault_type == "Invalid Temperature"):
-        response = serial_manager.send_command("TEMP:abc")
+        command = "TEMP:abc"
 
     elif (fault_type == "Out-of-Range Temperature"):
-        response = serial_manager.send_command("TEMP:999")
+        command = "TEMP:999"
 
     elif (fault_type == "Invalid Light"):
-        response = serial_manager.send_command("LIGHT:abc")
+        command = "LIGHT:abc"
 
     elif (fault_type == "Out-of-Range Light"):
-        response = serial_manager.send_command("LIGHT:-50")
+        command = "LIGHT:-50"
 
     elif (fault_type == "Invalid Humidity"):
-        response = serial_manager.send_command("HUMIDITY:abc")
+        command = "HUMIDITY:abc"
 
     else:
-        response = serial_manager.send_command("HUMIDITY:150")
-        
+        command = "HUMIDITY:150"
 
-    handle_arduino_response(response)
+    window.send_serial_command.emit(command)
 
 #handle the arduino responses on Python.
 def handle_arduino_response(response):
-    global fault_latched, current_system_state, current_fault, logging_active, temperature, light, humidity, start_time, active_scenario
+    global fault_latched, current_system_state, current_fault, logging_active, temperature, light, humidity, start_time, active_scenario, reset_elapsed_time
     if response is None:
         return
 
@@ -611,6 +594,24 @@ def handle_arduino_response(response):
         timer.stop()
         update_ui_state()
 
+    elif (response == "System Reset"):
+
+        fault_latched = False
+        current_system_state = "NORMAL"
+        current_fault = "None"
+
+        fault_status_label.setText("Fault Status: None")
+
+        if (logging_active and reset_elapsed_time is not None):
+            data_logger.log_reading(reset_elapsed_time,
+            temperature, light, humidity, current_system_state,
+            active_scenario if active_scenario is not None else "None",
+            "RESET")
+
+        reset_elapsed_time = None
+
+        update_ui_state()
+
 #start the logging
 def start_logging():
     global logging_active
@@ -636,6 +637,21 @@ def stop_logging():
     logging_file_label.setText(f"File: --")
 
     update_ui_state()
+
+def handle_disconnect_finished(response):
+    global closing_app
+    print("Arduino:", response)
+    connection_label.setText("Arduino: Disconnected")
+
+    if closing_app:
+        serial_thread.quit()
+        serial_thread.wait()
+
+        window.close()
+        return
+
+    update_ui_state()
+
 
 
 
@@ -726,6 +742,10 @@ run_scenario_button.clicked.connect(run_scenario)
 inject_fault_button.clicked.connect(inject_fault)
 start_logging_button.clicked.connect(start_logging)
 stop_logging_button.clicked.connect(stop_logging)
+window.send_serial_command.connect(serial_worker.send_command)
+window.disconnect_serial.connect(serial_worker.disconnect)
+serial_worker.response_received.connect(handle_arduino_response)
+serial_worker.disconnect_finished.connect(handle_disconnect_finished)
 
 refresh_ports()
 update_ui_state()
