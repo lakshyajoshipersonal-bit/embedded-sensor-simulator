@@ -4,7 +4,6 @@ import time
 
 from PyQt6.QtCore import QTimer, pyqtSignal, QThread
 
-
 from scenarios import get_scenario_targets
 from simulator import update_sensor_values
 from serial_manager import SerialManager
@@ -12,7 +11,7 @@ from graph_manager import GraphManager
 from data_logger import DataLogger
 from serial_worker import SerialWorker
 
-from PyQt6.QtWidgets import (
+from PyQt6.QtWidgets import(
     QApplication,
     QWidget,
     QLabel,
@@ -20,7 +19,9 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QComboBox,
     QLineEdit,
-    QScrollArea
+    QScrollArea,
+    QGroupBox,
+    QHBoxLayout
 )
 
 #defining the window close event, particularly making sure that we disconnect the arduino.
@@ -57,7 +58,7 @@ window = SensorSimulationWindow()
 window.setWindowTitle("Sensor Simulator")
 window.resize(1200,800)
 
-title = QLabel("Sensor Simulator")
+title = QLabel("MCU Sensor Simulation Dashboard")
 
 temperature_label = QLabel("Temperature: -- °C")
 light_label = QLabel("Light Level: --")
@@ -666,63 +667,163 @@ scroll_area.setWidgetResizable(True)
 scroll_area.setWidget(content_widget)
 
 layout.addWidget(title)
+title.setStyleSheet("font-size: 22px; font-weight: bold;")
 
-layout.addWidget(connection_label)
+#Connection Group
+connection_group = QGroupBox("Connection")
+connection_layout = QVBoxLayout()
+connection_button_layout = QHBoxLayout()
 
-layout.addWidget(connect_button)
-layout.addWidget(disconnect_button)
+connection_layout.addWidget(connection_label)
+connection_layout.addWidget(QLabel("Arduino Port:"))
+connection_layout.addWidget(port_box)
 
-layout.addWidget(QLabel("Arduino Port:"))
-layout.addWidget(port_box)
-layout.addWidget(refresh_ports_button)
+connection_button_layout.addWidget(connect_button)
+connection_button_layout.addWidget(disconnect_button)
+connection_layout.addWidget(refresh_ports_button)
+connection_layout.addLayout(connection_button_layout)
 
-layout.addWidget(mode_box)
+connection_group.setLayout(connection_layout)
 
-layout.addWidget(reset_button)
 
-layout.addWidget(QLabel("Update Rate:"))
-layout.addWidget(speed_box)
+# Simulation group
+simulation_group = QGroupBox("Simulation")
+simulation_layout = QVBoxLayout()
 
-layout.addWidget(QLabel("Scenario:"))
-layout.addWidget(scenario_box)
-layout.addWidget(run_scenario_button)
+simulation_layout.addWidget(QLabel("Mode:"))
+simulation_layout.addWidget(mode_box)
 
-layout.addWidget(QLabel("Fault Injection:"))
-layout.addWidget(fault_box)
-layout.addWidget(inject_fault_button)
+simulation_layout.addWidget(QLabel("Update Rate:"))
+simulation_layout.addWidget(speed_box)
 
-layout.addWidget(QLabel("Target Temperature:"))
-layout.addWidget(target_temp_input)
-layout.addWidget(QLabel("Target Light Level:"))
-layout.addWidget(target_light_input)
-layout.addWidget(QLabel("Target Humidity:"))
-layout.addWidget(target_humidity_input)
+simulation_layout.addWidget(reset_button)
 
-layout.addWidget(manual_temp_input)
-layout.addWidget(manual_light_input)
-layout.addWidget(manual_humidity_input)
-layout.addWidget(send_manual_button)
+simulation_group.setLayout(simulation_layout)
 
-layout.addWidget(temperature_label)
+#Target Group
+target_group = QGroupBox("Target Settings")
+target_layout = QVBoxLayout()
 
-layout.addWidget(graph_manager.canvas, stretch=1)
+target_layout.addWidget(QLabel("Target Temperature:"))
+target_layout.addWidget(target_temp_input)
 
-layout.addWidget(light_label)
-layout.addWidget(humidity_label)
-layout.addWidget(system_state_label)
-layout.addWidget(scenario_status_label)
-layout.addWidget(fault_status_label)
-layout.addWidget(logging_status_label)
-layout.addWidget(logging_file_label)
+target_layout.addWidget(QLabel("Target Light Level:"))
+target_layout.addWidget(target_light_input)
 
-layout.addWidget(start_button)
-layout.addWidget(stop_button)
+target_layout.addWidget(QLabel("Target Humidity:"))
+target_layout.addWidget(target_humidity_input)
 
-layout.addWidget(QLabel("Data Logging:"))
-layout.addWidget(start_logging_button)
-layout.addWidget(stop_logging_button)
+target_group.setLayout(target_layout)
+
+#Scenario group
+scenario_group = QGroupBox("Scenario Settings")
+scenario_layout = QVBoxLayout()
+
+scenario_layout.addWidget(scenario_box)
+scenario_layout.addWidget(run_scenario_button)
+scenario_layout.addWidget(scenario_status_label)
+
+scenario_group.setLayout(scenario_layout)
+
+# Fault injection group
+fault_group = QGroupBox("Fault Injection")
+fault_layout = QVBoxLayout()
+
+fault_layout.addWidget(fault_box)
+fault_layout.addWidget(inject_fault_button)
+fault_layout.addWidget(fault_status_label)
+
+fault_group.setLayout(fault_layout)
+
+#manual group
+manual_group = QGroupBox("Manual Settings")
+manual_layout = QVBoxLayout()
+
+manual_layout.addWidget(manual_temp_input)
+manual_layout.addWidget(manual_light_input)
+manual_layout.addWidget(manual_humidity_input)
+manual_layout.addWidget(send_manual_button)
+
+manual_group.setLayout(manual_layout)
+
+# System status group
+status_group = QGroupBox("System Status")
+status_layout = QVBoxLayout()
+
+sensor_status_layout = QHBoxLayout()
+
+sensor_status_layout.addWidget(temperature_label)
+sensor_status_layout.addWidget(light_label)
+sensor_status_layout.addWidget(humidity_label)
+
+status_layout.addLayout(sensor_status_layout)
+system_state_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+status_layout.addWidget(system_state_label)
+
+
+status_group.setLayout(status_layout)
+
+# Data logging group
+logging_group = QGroupBox("Data Logging")
+logging_layout = QVBoxLayout()
+
+logging_layout.addWidget(logging_status_label)
+logging_layout.addWidget(logging_file_label)
+logging_layout.addWidget(start_logging_button)
+logging_layout.addWidget(stop_logging_button)
+
+logging_group.setLayout(logging_layout)
+
+left_layout = QVBoxLayout()
+
+left_layout.addWidget(connection_group)
+left_layout.addWidget(simulation_group)
+left_layout.addWidget(target_group)
+left_layout.addWidget(manual_group)
+left_layout.addWidget(scenario_group)
+left_layout.addWidget(fault_group)
+left_layout.addWidget(logging_group)
+
+left_layout.addStretch()
+
+right_layout = QVBoxLayout()
+
+right_layout.addWidget(status_group)
+right_layout.addWidget(graph_manager.canvas, stretch=1)
+
+simulation_button_layout = QHBoxLayout()
+
+simulation_button_layout.addWidget(start_button)
+simulation_button_layout.addWidget(stop_button)
+
+right_layout.addLayout(simulation_button_layout)
+
+dashboard_layout = QHBoxLayout()
+dashboard_layout.addLayout(left_layout, 1)
+dashboard_layout.addLayout(right_layout, 2) #graphs get 2x horizontal space
+
+dashboard_layout.setSpacing(15)
+layout.setContentsMargins(15, 15, 15, 15)
+layout.setSpacing(10)
+
+control_groups = [
+    connection_group,
+    simulation_group,
+    target_group,
+    manual_group,
+    scenario_group,
+    fault_group,
+    logging_group
+]
+
+for group in control_groups:
+    group.setMaximumWidth(500)
+
+layout.addLayout(dashboard_layout)
+
 
 window_layout = QVBoxLayout(window)
+
 window_layout.addWidget(scroll_area)
 
 timer = QTimer()

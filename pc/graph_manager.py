@@ -4,6 +4,7 @@ from matplotlib.figure import Figure
 class GraphManager:
     def __init__(self):
         self.figure = Figure()
+        self.figure.patch.set_facecolor("#1e1e1e")
         self.canvas = FigureCanvas(self.figure)
 
         self.canvas.setMinimumHeight(480)
@@ -34,6 +35,8 @@ class GraphManager:
         self.ax2.set_xlabel("Time (s)")
         self.ax2.set_ylabel("Humidity Level (%)")
 
+        self.style_axes()
+
         self.figure.tight_layout()
         self.canvas.draw()
 
@@ -60,18 +63,34 @@ class GraphManager:
         self.ax.axhline(y=30, linestyle="--", label="High Temp Threshold")
         self.ax.set_title("Temperature Over Time")
         self.ax.set_ylabel("Temperature (°C)")
-        self.ax.legend()
+
+        legend = self.ax.legend()
+        if legend is not None:
+            legend.get_frame().set_facecolor("#2b2b2b")
+            legend.get_frame().set_edgecolor("white")
+
+            for text in legend.get_texts():
+                text.set_color("white")
         
         self.ax1.plot(self.time_history, self.light_history)
         self.ax1.axhline(y=300, linestyle="--", label="Dark Threshold")
         self.ax1.set_title("Light Level Over Time")
         self.ax1.set_ylabel("Light Level")
-        self.ax1.legend()
+
+        legend = self.ax1.legend()
+        if legend is not None:
+            legend.get_frame().set_facecolor("#2b2b2b")
+            legend.get_frame().set_edgecolor("white")
+        
+            for text in legend.get_texts():
+                text.set_color("white")
 
         self.ax2.plot(self.time_history, self.humidity_history)
         self.ax2.set_title("Humidity Over Time")
         self.ax2.set_xlabel("Time(s)")
         self.ax2.set_ylabel("Humidity (%)")
+
+        self.style_axes()
 
         self.figure.tight_layout()
         self.canvas.draw()
@@ -83,3 +102,16 @@ class GraphManager:
         self.humidity_history.clear()
 
         self.setup_graphs()
+
+    def style_axes(self):
+        for axis in [self.ax, self.ax1, self.ax2]:
+            axis.set_facecolor("#1e1e1e")
+
+            axis.tick_params(axis="both",colors="white")
+
+            axis.xaxis.label.set_color("white")
+            axis.yaxis.label.set_color("white")
+            axis.title.set_color("white")
+
+            for spine in axis.spines.values():
+                spine.set_color("white")
