@@ -196,6 +196,14 @@ def start_simulation(from_scenario=False):
 
     if mode_box.currentText() == "Automatic":
         if not from_scenario:
+            try:
+                float(target_temp_input.text())
+                float(target_light_input.text())
+                float(target_humidity_input.text())
+            except ValueError:
+                print("Invalid target input")
+                return
+
             active_scenario = None
             scenario_start_time = None
 
@@ -367,6 +375,7 @@ def refresh_ports():
 
 #update the button display and other features based on the current mode.
 def update_ui_state():
+    global fault_latched, logging_active
     connected = serial_manager.is_connected()
     automatic = mode_box.currentText() == "Automatic"
     running = timer.isActive()
@@ -377,6 +386,7 @@ def update_ui_state():
 
     port_box.setEnabled(not connected)
     refresh_ports_button.setEnabled(not connected)
+    mode_box.setEnabled(not running)
 
     start_button.setEnabled(connected and automatic and not running and not fault_latched)
     stop_button.setEnabled(connected and automatic and running)
@@ -653,10 +663,13 @@ def handle_disconnect_finished(response):
 
     update_ui_state()
 
+def handle_error_occured(error):
+    print("Serial error:", error)
+    timer.stop()
 
-
-
-
+    serial_manager.close_connection()
+    connection_label.setText("Arduino: Connection Lost")
+    update_ui_state()
 
 #setting the layout by adding the appropriate widgets in preferred sequence
 content_widget = QWidget()
@@ -847,6 +860,7 @@ window.send_serial_command.connect(serial_worker.send_command)
 window.disconnect_serial.connect(serial_worker.disconnect)
 serial_worker.response_received.connect(handle_arduino_response)
 serial_worker.disconnect_finished.connect(handle_disconnect_finished)
+serial_worker.error_occured.connect(handle_error_occured)
 
 refresh_ports()
 update_ui_state()

@@ -1,8 +1,10 @@
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
+import serial
 
 class SerialWorker(QObject):
     response_received = pyqtSignal(str)
     disconnect_finished = pyqtSignal(str)
+    error_occured = pyqtSignal(str)
 
     def __init__(self, serial_manager):
         super().__init__()
@@ -10,15 +12,22 @@ class SerialWorker(QObject):
 
     @pyqtSlot(str)
     def send_command(self, command):
-        response = self.serial_manager.send_command(command)
+        try:
+            response = self.serial_manager.send_command(command)
+            if response is not None:
+                self.response_received.emit(response)
 
-        if response is not None:
-            self.response_received.emit(response)
+        except serial.SerialException as e:
+            self.error_occured.emit(str(e))
 
     @pyqtSlot()
     def disconnect(self):
-        response = self.serial_manager.disconnect()
-        self.disconnect_finished.emit(response)
+
+        try:
+            response = self.serial_manager.disconnect()
+            self.disconnect_finished.emit(response)
+        except serial.SerialException as e:
+            self.error_occured.emit(str(e))
         
     
 

@@ -39,5 +39,13 @@ class SerialManager():
 
         return response
 
+    def close_connection(self):
+        if self.arduino is not None:
+            try:
+                self.arduino.close()
+            except serial.SerialException:
+                pass
+            self.arduino = None
+
     
         

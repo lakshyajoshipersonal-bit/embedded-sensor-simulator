@@ -18,6 +18,7 @@ bool isValidNumber(String value){
     }
 
     bool decimalSeen = false;
+    bool digitSeen = false;
     for(int i = 0; i<value.length(); i++){
         char c = value[i];
         if (c == '-' && i == 0){
@@ -28,11 +29,13 @@ bool isValidNumber(String value){
             continue;
         }
 
-        if(!isDigit(c)){
-            return false;
+        if(isDigit(c)){
+            digitSeen = true;
+            continue;
         }
+        return false;
     }
-    return true;
+    return digitSeen;
 }
 
 void updateSystem() {
@@ -188,7 +191,7 @@ bool handleHumidity(String data){
         fault = INVALID_HUMIDITY;
         digitalWrite(LED_pin, LOW);
         sendFault();
-        return;
+        return false;
     }
     float new_humidity = value.toFloat();
 
@@ -197,7 +200,7 @@ bool handleHumidity(String data){
         fault = HUMIDITY_RANGE;
         digitalWrite(LED_pin, LOW);
         sendFault();
-        return;
+        return false;
     }
     humidity = new_humidity;
     return true;
