@@ -1,5 +1,5 @@
-float temperature = 0;
-int lightLevel = 1000;
+float temperature = 22.0;
+int lightLevel = 700;
 float humidity = 50.0;
 int LED_pin = 6;
 enum state {NORMAL, OVERHEAT, DARK, OVERHEAT_DARK, FAULT};
@@ -209,7 +209,7 @@ bool handleHumidity(String data){
 void handleReset(){
     temperature = 22.0;
     lightLevel = 700;
-    
+    humidity = 50.0;
     fault = NO_FAULT;
     systemState = NORMAL;
     digitalWrite(LED_pin, LOW);
