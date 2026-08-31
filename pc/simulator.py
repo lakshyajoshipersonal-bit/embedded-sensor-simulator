@@ -1,6 +1,7 @@
 import random
 
-def update_sensor_values(temperature,light,humidity,target_temperature,target_light,target_humidity):
+def update_sensor_values(temperature,light,humidity,target_temperature,
+                         target_light,target_humidity):
     temperature += (target_temperature - temperature) * 0.1
     temperature += random.uniform(-0.1,0.1)
 

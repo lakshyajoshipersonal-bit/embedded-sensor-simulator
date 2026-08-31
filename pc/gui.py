@@ -1,5 +1,4 @@
 import sys
-import serial
 import time
 
 from PyQt6.QtCore import QTimer, pyqtSignal, QThread
@@ -24,7 +23,7 @@ from PyQt6.QtWidgets import(
     QHBoxLayout
 )
 
-#defining the window close event, particularly making sure that we disconnect the arduino.
+#handling the window close event
 class SensorSimulationWindow(QWidget):
     send_serial_command = pyqtSignal(str)
     disconnect_serial = pyqtSignal()
@@ -37,21 +36,20 @@ class SensorSimulationWindow(QWidget):
             logging_active = False
 
         if serial_manager.is_connected() and not closing_app:
-            try:
-                closing_app = True
-                window.disconnect_serial.emit()
-                event.ignore() #dont close the window yet.
-                return
 
-            except serial.SerialException:
-                pass
+            closing_app = True
+            window.disconnect_serial.emit()
+            event.ignore() #dont close the window yet.
+            return
+
+            
         #serial work finished, so stop the worker thread
         serial_thread.quit()
         serial_thread.wait()
 
         event.accept()
 
-#define the whole window and added features along with some defaults.
+#define the whole window and added features along with some default values.
 app = QApplication(sys.argv)
 window = SensorSimulationWindow()
 
@@ -133,6 +131,7 @@ target_temp_input.setText("25")
 target_light_input.setText("400")
 target_humidity_input.setText("50")
 
+#creating the serial manager and worker
 serial_manager = SerialManager() 
 serial_worker = SerialWorker(serial_manager)
 serial_thread = QThread() #create the thread
@@ -140,7 +139,7 @@ serial_worker.moveToThread(serial_thread) #move the slot functions of serial_wor
 serial_thread.start()
 
 
-#initialized values
+#initialized default values
 temperature = 22.0
 light = 700
 humidity = 50.0
@@ -153,15 +152,11 @@ logging_active = False
 start_time = None
 reset_elapsed_time = None
 closing_app = False
-
-
 saved_target_temp = "25"
 saved_target_light = "400"
 saved_target_humidity = "50"
 
-#target_humidity = 50.0
-
-#connect the arduino
+#connecting the arduino
 def connect_arduino():
     selected_port = port_box.currentData()
 
@@ -180,15 +175,9 @@ def connect_arduino():
         connection_label.setText("Arduino: Connection Failed")
         print("Connection failed:", e)
 
-#disconnect the arduino
+#disconnecting the arduino
 def disconnect_arduino():
-    try:
-        window.disconnect_serial.emit()
-
-    except serial.SerialException as e:
-        print("Disconnect failed:", e)
-
-    
+    window.disconnect_serial.emit()
 
 #for starting the automatic simulation whether sceanrio or user defined targets.
 def start_simulation(from_scenario=False):
@@ -211,17 +200,11 @@ def start_simulation(from_scenario=False):
 
         graph_manager.reset()
 
-        selected_speed = speed_box.currentText()
-
-        if(selected_speed == "0.25s"):
-            interval = 250
-        elif (selected_speed == "0.5s"):
-            interval = 500
-        elif (selected_speed == "1.0s"):
-            interval = 1000
-        else:
-            interval = 2000
-
+        interval_map = {"0.25s":250,
+                        "0.5s":500,
+                        "1.0s":1000,
+                        "2.0s":2000}
+        interval = interval_map[speed_box.currentText()]
 
         timer.start(interval)
         update_ui_state()
@@ -244,7 +227,7 @@ def stop_simulation():
 
     update_ui_state()
 
-#dealing with the case of changed mode from automatic to manual
+#handling the switch between automatic and manual modes
 def mode_changed():
     if mode_box.currentText() == "Manual":
         timer.stop()
@@ -256,22 +239,9 @@ def send_to_arduino(sensor, value):
     if not serial_manager.is_connected():
         return
 
-    try:
-        message = f"{sensor}:{value}"
-
-        window.send_serial_command.emit(message)
+    message = f"{sensor}:{value}"
+    window.send_serial_command.emit(message)
         
-
-    except serial.SerialException as e:
-        print("Arduino connection lost:", e)
-
-        timer.stop()
-
-        connection_label.setText("Arduino: Connection Lost")
-
-        update_ui_state()
-
-
 #dealing with the manual values (updating the labels, graph, and sending to arduino)
 def send_manual_values():
     global start_time, logging_active, current_system_state, current_fault
@@ -314,7 +284,7 @@ def send_manual_values():
     except ValueError:
         print("Invalid manual input")
 
-#updating the graphs, we only show the last 30 seconds history
+#updating the graphs
 def update_graphs(temp_value, light_value, humidity_value):
     global start_time
     current_time = time.time() - start_time
@@ -322,7 +292,8 @@ def update_graphs(temp_value, light_value, humidity_value):
     
 #dealing with updating the sensors for automatic.
 def update_sensors():
-    global temperature, light, humidity, logging_active, current_system_state, active_scenario, start_time, current_fault
+    global temperature, light, humidity, logging_active
+    global current_system_state, active_scenario, start_time, current_fault
     scenario_targets = get_current_scenario_targets()
 
     if scenario_targets == "FINISHED":
@@ -373,13 +344,12 @@ def refresh_ports():
     if port_box.count() == 0:
         port_box.addItem("No serial devices found", None)
 
-#update the button display and other features based on the current mode.
+#update the ui features based on the current state of the simulator.
 def update_ui_state():
     global fault_latched, logging_active
     connected = serial_manager.is_connected()
     automatic = mode_box.currentText() == "Automatic"
     running = timer.isActive()
-    scenario_running = running and active_scenario is not None
 
     connect_button.setEnabled(not connected)
     disconnect_button.setEnabled(connected and not running)
@@ -400,9 +370,9 @@ def update_ui_state():
 
     scenario_box.setEnabled(connected and automatic and not running)
     run_scenario_button.setEnabled(connected and automatic and not running and not fault_latched)
-    target_temp_input.setEnabled(connected and automatic and not running and not scenario_running)
-    target_light_input.setEnabled(connected and automatic and not running and not scenario_running)
-    target_humidity_input.setEnabled(connected and automatic and not running and not scenario_running)
+    target_temp_input.setEnabled(connected and automatic and not running)
+    target_light_input.setEnabled(connected and automatic and not running)
+    target_humidity_input.setEnabled(connected and automatic and not running)
     speed_box.setEnabled(connected and automatic and not running)
 
     fault_box.setEnabled(connected)
@@ -410,16 +380,14 @@ def update_ui_state():
 
 #resetting the simulation
 def reset_simulation():
-    global temperature,light,humidity,start_time,fault_latched,current_fault,current_system_state, reset_elapsed_time
+    global temperature,light,humidity,start_time,fault_latched
+    global current_fault,current_system_state,reset_elapsed_time,active_scenario,scenario_start_time
+    global saved_target_humidity, saved_target_light, saved_target_temp
 
     timer.stop()
 
     if serial_manager.is_connected():
-        try:
-            window.send_serial_command.emit("RESET")
-
-        except serial.SerialException as e:
-            print("Reset failed:", e)
+        window.send_serial_command.emit("RESET")
 
     #store the relapsed time
     if start_time is not None:
@@ -431,14 +399,21 @@ def reset_simulation():
     light = 700
     humidity = 50.0
     start_time = None
-    current_system_state = "UNKNOWN"
+    current_system_state = "NORMAL"
     current_fault = "None"
+    active_scenario = None
+    scenario_start_time = None
+    fault_latched = False
 
     temperature_label.setText("Temperature: -- °C")
     light_label.setText("Light Level: --")
     humidity_label.setText("Humidity: -- %")
     system_state_label.setText("System State: Normal")
     scenario_status_label.setText("Scenario Status --")
+
+    target_temp_input.setText(saved_target_temp)
+    target_light_input.setText(saved_target_light)
+    target_humidity_input.setText(saved_target_humidity)
 
     graph_manager.reset()
 
@@ -455,9 +430,6 @@ def run_scenario():
 
     active_scenario = scenario_box.currentText()
     scenario_start_time = time.time()
-
-    
-
 
     target_temp_input.clear()
     target_light_input.clear()
@@ -495,16 +467,13 @@ def get_current_scenario_targets():
 
     return get_scenario_targets(active_scenario, scenario_time)
 
-#behavior on finishing the sceanrios.
+#handle scenario completion.
 def finish_scenario():
     global active_scenario, scenario_start_time
     timer.stop()
 
     if serial_manager.is_connected():
-        try:
-            window.send_serial_command.emit("RESET")
-        except serial.SerialException as e:
-            print("Scenario cleanup failed:", e)
+        window.send_serial_command.emit("RESET")
 
     active_scenario = None
     scenario_start_time = None
@@ -544,7 +513,9 @@ def inject_fault():
 
 #handle the arduino responses on Python.
 def handle_arduino_response(response):
-    global fault_latched, current_system_state, current_fault, logging_active, temperature, light, humidity, start_time, active_scenario, reset_elapsed_time
+    global fault_latched, current_system_state
+    global current_fault, logging_active, temperature, light, humidity 
+    global start_time, active_scenario, reset_elapsed_time
     if response is None:
         return
 
@@ -649,6 +620,7 @@ def stop_logging():
 
     update_ui_state()
 
+#handling when disconnect is finished
 def handle_disconnect_finished(response):
     global closing_app
     print("Arduino:", response)
@@ -663,6 +635,7 @@ def handle_disconnect_finished(response):
 
     update_ui_state()
 
+#handling error occurence (ex. arduino disconnected mid run)
 def handle_error_occured(error):
     print("Serial error:", error)
     timer.stop()
@@ -671,7 +644,7 @@ def handle_error_occured(error):
     connection_label.setText("Arduino: Connection Lost")
     update_ui_state()
 
-#setting the layout by adding the appropriate widgets in preferred sequence
+#setting the layout
 content_widget = QWidget()
 layout = QVBoxLayout(content_widget)
 
@@ -789,6 +762,7 @@ logging_group.setLayout(logging_layout)
 
 left_layout = QVBoxLayout()
 
+#setting up the entire layout properly
 left_layout.addWidget(connection_group)
 left_layout.addWidget(simulation_group)
 left_layout.addWidget(target_group)
@@ -864,7 +838,6 @@ serial_worker.error_occured.connect(handle_error_occured)
 
 refresh_ports()
 update_ui_state()
-
 
 window.show()
 

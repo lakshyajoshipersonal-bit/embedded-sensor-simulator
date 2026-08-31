@@ -28,7 +28,7 @@ class SerialManager():
         return response
 
     def is_connected(self):
-        return self.arduino is not None
+        return self.arduino is not None and self.arduino.is_open
 
     def send_command(self, command):
         if self.arduino is None:

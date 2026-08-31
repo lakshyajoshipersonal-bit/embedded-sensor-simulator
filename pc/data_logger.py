@@ -2,6 +2,7 @@ import csv
 import os
 from datetime import datetime
 
+#for data logging in a csv file.
 class DataLogger:
     def __init__(self):
         self.file = None
