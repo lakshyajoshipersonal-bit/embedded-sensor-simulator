@@ -88,9 +88,9 @@ Temperature, light, and humidity are plotted in real time. Temperature and light
 Install the required packages using:
 ```bash
 pip install -r requirements.txt
+```
 
-
-### Technologies used
+## Technologies used
 - Python
 - PyQt6
 - Matplotlib
