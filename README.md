@@ -86,8 +86,8 @@ Temperature, light, and humidity are plotted in real time. Temperature and light
 
 ##Installation
 Install the required packages using:
-    ```bash
-    pip install -r requirements.txt
+```bash
+pip install -r requirements.txt
 
 
 ### Technologies used
