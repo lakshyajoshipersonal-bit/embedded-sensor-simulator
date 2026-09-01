@@ -89,6 +89,7 @@ Install the required packages using:
     ```bash
     pip install -r requirements.txt
 
+
 ### Technologies used
 - Python
 - PyQt6
