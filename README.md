@@ -84,13 +84,13 @@ Record sensor readings to CSV files during a simulation. Logged data includes:
 ### Real-Time Visualization
 Temperature, light, and humidity are plotted in real time. Temperature and light graphs also display threshold indicators for high-temperature and dark conditions.
 
-##Installation
+### Installation
 Install the required packages using:
 ```bash
 pip install -r requirements.txt
 ```
 
-## Technologies used
+### Technologies used
 - Python
 - PyQt6
 - Matplotlib
