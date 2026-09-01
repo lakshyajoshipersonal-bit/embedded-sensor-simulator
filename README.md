@@ -29,3 +29,71 @@ Predefined scenarios progressively modify environmental conditions over multiple
 stages. The example above shows the Dark scenario reducing the simulated light
 level toward and below the configured dark threshold.
 
+## Requirements
+
+### Hardware
+- Arduino Uno or compatible Arduino board
+- USB cable for serial communication
+- LED and resistor for system-state indication
+
+### Software
+- Python 3
+- Arduino IDE
+- PyQt6
+- Matplotlib
+- pyserial
+
+## How to Run
+1. Connect arduino to computer using USB
+2. Open the firmware in the 'arduino/' folder using the Arduino IDE
+3. Select the correct Arduino board and port, then upload the firmware
+4. Open a terminal in the `pc/` folder.
+5. Run the Python application:
+   ```bash
+   python gui.py
+6. In the dashboard, click refresh ports
+7. Select the Arduino's serial port and click Connect Arduino
+8. Choose a simulation mode and begin using the dashboard.
+
+## Usage
+
+### Automatic Mode
+Set target temperature, light, and humidity values and select an update rate. The simulator gradually adjusts the sensor values toward the selected targets while displaying the results in real time.
+
+### Manual Mode
+Enter temperature, light, and humidity values manually and send them directly to the Arduino.
+
+### Scenarios
+Run predefined environmental scenarios that change sensor conditions over multiple stages. Available scenarios include:
+- Normal Operation
+- Overheating
+- Dark
+- Overheat + Dark
+
+### Fault Injection
+Inject invalid or out-of-range sensor values to test the system's fault detection and recovery behavior. Faults remain latched until the system is reset.
+
+### Data Logging
+Record sensor readings to CSV files during a simulation. Logged data includes:
+- Timestamp and elapsed time
+- Temperature, light, and humidity
+- System state
+- Active scenario
+- Fault information
+
+### Real-Time Visualization
+Temperature, light, and humidity are plotted in real time. Temperature and light graphs also display threshold indicators for high-temperature and dark conditions.
+
+##Installation
+Install the required packages using:
+```bash
+pip install -r requirements.txt
+
+#Technologies used
+- Python
+- PyQt6
+- Matplotlib
+- pyserial
+- Arduino / C++
+- CSV
+- Git and GitHub
