@@ -1,11 +1,11 @@
-#MCU Sensor Simulation Dashboard
+# MCU Sensor Simulation Dashboard
 A desktop based sensor simulation and monitoring system that integrates a Python PyQt6 GUI with an arduino over serial communication.
 
 The application simulates temperature, light, and humidity sensor data in real time allowing users to run predefined environmental scenarios, automatic simulations, manually control sensor data, inject sensor faults, visualize sensor data through graphs, and record simulation results to CSV files.
 
 Serial communication is handled asynchronously using a worker thread, allowing the GUI to remain responsive during communication and connection failures.
 
-##Features
+## Features
 1. Real-time temperature, light, and humidity sensor simulation
 2. Automatic and manual simulation modes
 3. Configurable sensor target values and simulation update rates
@@ -17,12 +17,12 @@ Serial communication is handled asynchronously using a worker thread, allowing t
 9. Automatic detection and handling of unexpected Arduino disconnections
 10. Arduino-controlled system states and LED behavior
 
-##Dashboard
+## Dashboard
 ![MCU Sensor Simulation Dashboard](pc/assets/dark_scenario.png)
 The dashboard provides visual monitoring in the form of graphs, and status labels while communicating with the 
 arduino over serial during any kind of simulation run.
 
-##Scenario Simulation
+## Scenario Simulation
 ![Dark Scenario Simulation](pc/assets/dashboard.png)
 
 Predefined scenarios progressively modify environmental conditions over multiple
