@@ -16,3 +16,16 @@ Serial communication is handled asynchronously using a worker thread, allowing t
 8. Using PyQt threads for asynchronous arduino serial communication
 9. Automatic detection and handling of unexpected Arduino disconnections
 10. Arduino-controlled system states and LED behavior
+
+##Dashboard
+![MCU Sensor Simulation Dashboard](pc/assets/dashboard.png)
+The dashboard provides visual monitoring in the form of graphs, and status labels while communicating with the 
+arduino over serial during any kind of simulation run.
+
+##Scenario Simulation
+![Dark Scenario Simulation](pc/assets/dark_scenario.png)
+
+Predefined scenarios progressively modify environmental conditions over multiple
+stages. The example above shows the Dark scenario reducing the simulated light
+level toward and below the configured dark threshold.
+
