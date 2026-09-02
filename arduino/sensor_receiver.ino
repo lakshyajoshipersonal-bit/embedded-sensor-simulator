@@ -2,6 +2,8 @@ float temperature = 22.0;
 int lightLevel = 700;
 float humidity = 50.0;
 int LED_pin = 6;
+float temp_threshold = 30.0;
+int light_threshold = 300;
 enum state {NORMAL, OVERHEAT, DARK, OVERHEAT_DARK, FAULT};
 enum FaultCode {NO_FAULT,INVALID_TEMP,TEMP_RANGE,INVALID_LIGHT,LIGHT_RANGE,INVALID_HUMIDITY,HUMIDITY_RANGE};
 state systemState = NORMAL;
@@ -123,13 +125,13 @@ state determineSystemState(){
     if (systemState == FAULT){
         return FAULT;
     }
-    if (temperature > 30 && lightLevel < 300){
+    if (temperature > temp_threshold && lightLevel < light_threshold){
         return OVERHEAT_DARK;
     }
-    if (temperature > 30){
+    if (temperature > temp_threshold){
         return OVERHEAT;
     }
-    if (lightLevel < 300){
+    if (lightLevel < light_threshold){
         return DARK;
     }
     return NORMAL;
@@ -246,17 +248,46 @@ void handleCommand(String data){
     else if(data.startsWith("QUIT")){
         handleQuit();
         return;
-            
     }
+
 
     else if(data.startsWith("RESET")){
         handleReset();
         return;
     }
 
+    else if(data.startsWith("TEMP_THRESHOLD:")){
+        String value = data.substring(15);
+
+        if (!isValidNumber(value)){
+            Serial.println("INVALID_TEMP_THRESHOLD");
+            return;
+        }
+        temp_threshold = value.toFloat();
+
+        Serial.print("TEMP_THRESHOLD: ");
+        Serial.println(temp_threshold);
+        return;
+        
+    }
+
+    else if(data.startsWith("LIGHT_THRESHOLD:")){
+        String value = data.substring(16);
+
+        if (!isValidNumber(value)){
+            Serial.println("INVALID_LIGHT_THRESHOLD");
+            return;
+        }
+        light_threshold = value.toInt();
+
+        Serial.print("LIGHT_THRESHOLD: ");
+        Serial.println(light_threshold);
+        return;
+        
+    }
+    
     else {
         Serial.println("Unknown sensor type");
-        return;
     }
 
     updateSystem();
