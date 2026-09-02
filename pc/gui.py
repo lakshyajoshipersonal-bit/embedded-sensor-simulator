@@ -76,6 +76,10 @@ reset_button = QPushButton("Reset Simulation")
 run_scenario_button = QPushButton("Run Scenario")
 start_logging_button = QPushButton("Start Logging")
 stop_logging_button = QPushButton("Stop Logging")
+refresh_ports_button = QPushButton("Refresh Ports")
+inject_fault_button = QPushButton("Inject Fault")
+send_manual_button = QPushButton("Send Manual Values")
+set_threshold_button = QPushButton("Send Threshold Values")
 
 #managers
 graph_manager = GraphManager()
@@ -85,7 +89,6 @@ mode_box = QComboBox()
 mode_box.addItems(["Automatic", "Manual"])
 
 port_box = QComboBox()
-refresh_ports_button = QPushButton("Refresh Ports")
 
 fault_box = QComboBox()
 fault_box.addItems(["Invalid Temperature",
@@ -95,7 +98,6 @@ fault_box.addItems(["Invalid Temperature",
                     "Invalid Humidity",
                     "Out-of-Range Humidity"
                   ])
-inject_fault_button = QPushButton("Inject Fault")
 
 speed_box = QComboBox()
 speed_box.addItems(["0.25s", "0.5s", "1.0s", "2.0s"])
@@ -116,8 +118,6 @@ manual_light_input.setPlaceholderText("Enter Light Level: ")
 manual_humidity_input = QLineEdit()
 manual_humidity_input.setPlaceholderText("Enter Humidity Level: ")
 
-send_manual_button = QPushButton("Send Manual Values")
-
 target_temp_input = QLineEdit()
 target_temp_input.setPlaceholderText("Target Temperature")
 
@@ -126,6 +126,12 @@ target_light_input.setPlaceholderText("Target Light")
 
 target_humidity_input = QLineEdit()
 target_humidity_input.setPlaceholderText("Target Humidity")
+
+threshold_temp_input = QLineEdit("30.0")
+threshold_temp_input.setPlaceholderText("High temp threshold")
+
+threshold_light_input = QLineEdit("300")
+threshold_light_input.setPlaceholderText("Dark threshold")
 
 target_temp_input.setText("25")
 target_light_input.setText("400")
@@ -155,6 +161,8 @@ closing_app = False
 saved_target_temp = "25"
 saved_target_light = "400"
 saved_target_humidity = "50"
+temp_threshold = 30.0
+light_threshold = 300
 
 #connecting the arduino
 def connect_arduino():
@@ -367,12 +375,15 @@ def update_ui_state():
     reset_button.setEnabled(connected)
     start_logging_button.setEnabled(connected and not logging_active)
     stop_logging_button.setEnabled(logging_active)
+    set_threshold_button.setEnabled(connected and automatic and not running and not fault_latched)
 
     scenario_box.setEnabled(connected and automatic and not running)
     run_scenario_button.setEnabled(connected and automatic and not running and not fault_latched)
     target_temp_input.setEnabled(connected and automatic and not running)
     target_light_input.setEnabled(connected and automatic and not running)
     target_humidity_input.setEnabled(connected and automatic and not running)
+    threshold_light_input.setEnabled(connected and automatic and not running)
+    threshold_temp_input.setEnabled(connected and automatic and not running)
     speed_box.setEnabled(connected and automatic and not running)
 
     fault_box.setEnabled(connected)
@@ -445,7 +456,7 @@ def run_scenario():
 
 #to get the scenario targets for particular scenarios
 def get_current_scenario_targets():
-    global scenario_start_time, active_scenario
+    global scenario_start_time, active_scenario, temp_threshold, light_threshold
     if active_scenario is None or scenario_start_time is None:
         return None
     scenario_time = time.time() - scenario_start_time
@@ -465,7 +476,7 @@ def get_current_scenario_targets():
         finish_scenario()
         return "FINISHED"
 
-    return get_scenario_targets(active_scenario, scenario_time)
+    return get_scenario_targets(active_scenario, scenario_time, temp_threshold, light_threshold)
 
 #handle scenario completion.
 def finish_scenario():
@@ -644,6 +655,28 @@ def handle_error_occured(error):
     connection_label.setText("Arduino: Connection Lost")
     update_ui_state()
 
+def send_threshold_values():
+    global temp_threshold, light_threshold
+    try:
+        temp_threshold = float(threshold_temp_input.text())
+        light_threshold = int(threshold_light_input.text())
+    except ValueError:
+        print("Invalid temperature or light threshold")
+        return
+
+    if temp_threshold < 15 or temp_threshold >= 45:
+        print("Temperature threshold must be between 15 and 45")
+        return
+
+    if light_threshold <= 0 or light_threshold > 1000:
+        print("Light threshold must be between 0 and 1000")
+        return
+
+    send_to_arduino("TEMP_THRESHOLD", f"{temp_threshold:.1f}")
+    send_to_arduino("LIGHT_THRESHOLD", light_threshold)
+
+    graph_manager.set_thresholds(temp_threshold, light_threshold)
+
 #setting the layout
 content_widget = QWidget()
 layout = QVBoxLayout(content_widget)
@@ -732,6 +765,16 @@ manual_layout.addWidget(send_manual_button)
 
 manual_group.setLayout(manual_layout)
 
+#threshold group
+threshold_group = QGroupBox("Threshold Settings")
+threashold_layout = QVBoxLayout()
+
+threashold_layout.addWidget(threshold_temp_input)
+threashold_layout.addWidget(threshold_light_input)
+threashold_layout.addWidget(set_threshold_button)
+
+threshold_group.setLayout(threashold_layout)
+
 # System status group
 status_group = QGroupBox("System Status")
 status_layout = QVBoxLayout()
@@ -767,6 +810,7 @@ left_layout.addWidget(connection_group)
 left_layout.addWidget(simulation_group)
 left_layout.addWidget(target_group)
 left_layout.addWidget(manual_group)
+left_layout.addWidget(threshold_group)
 left_layout.addWidget(scenario_group)
 left_layout.addWidget(fault_group)
 left_layout.addWidget(logging_group)
@@ -800,7 +844,8 @@ control_groups = [
     manual_group,
     scenario_group,
     fault_group,
-    logging_group
+    logging_group,
+    threshold_group
 ]
 
 for group in control_groups:
@@ -830,6 +875,8 @@ run_scenario_button.clicked.connect(run_scenario)
 inject_fault_button.clicked.connect(inject_fault)
 start_logging_button.clicked.connect(start_logging)
 stop_logging_button.clicked.connect(stop_logging)
+set_threshold_button.clicked.connect(send_threshold_values)
+
 window.send_serial_command.connect(serial_worker.send_command)
 window.disconnect_serial.connect(serial_worker.disconnect)
 serial_worker.response_received.connect(handle_arduino_response)

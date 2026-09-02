@@ -1,43 +1,43 @@
-def get_scenario_targets(active_scenario, scenario_time):
+def get_scenario_targets(active_scenario, scenario_time, temp_threshold, light_threshold):
 
     if active_scenario == "Normal Operation":
         if scenario_time < 5:
-            return 25, 700, 50
+            return temp_threshold - 5, light_threshold + 400, 50
         elif scenario_time < 10:
-            return 26, 650, 52
+            return temp_threshold - 4, light_threshold + 350, 52
         elif scenario_time < 15:
-            return 24, 600, 48
+            return temp_threshold - 6, light_threshold + 300, 48
         else:
-            return 25, 700, 50
+            return temp_threshold - 5, light_threshold + 400, 50
 
     elif active_scenario == "Overheating":
         if scenario_time < 5:
-            return 25, 700, 50
+            return temp_threshold - 5, light_threshold + 400, 50
         elif scenario_time < 10:
-            return 29, 700, 47
+            return temp_threshold - 1, light_threshold + 400, 47
         elif scenario_time < 15:
-            return 32, 700, 43
+            return temp_threshold + 2, light_threshold + 400, 43
         else:
-            return 38, 700, 38
+            return temp_threshold + 8, light_threshold + 400, 38
 
     elif active_scenario == "Dark":
         if scenario_time < 5:
-            return 22, 700, 50
+            return temp_threshold - 5, light_threshold + 400, 50
         elif scenario_time < 10:
-            return 22, 500, 53
+            return temp_threshold - 5, light_threshold + 300, 53
         elif scenario_time < 15:
-            return 22, 300, 55
+            return temp_threshold - 5, light_threshold, 55
         else:
-            return 22, 100, 60
+            return temp_threshold - 5, light_threshold - 200, 60
 
     elif active_scenario == "Overheat + Dark":
         if scenario_time < 5:
-            return 25, 700, 50
+            return temp_threshold - 5, light_threshold + 400, 50
         elif scenario_time < 10:
-            return 29, 500, 50
+            return temp_threshold - 1, light_threshold + 200, 50
         elif scenario_time < 15:
-            return 32, 300, 48
+            return temp_threshold + 2, light_threshold, 48
         else:
-            return 38, 100, 45
+            return temp_threshold + 8, light_threshold - 200, 45
 
     return None

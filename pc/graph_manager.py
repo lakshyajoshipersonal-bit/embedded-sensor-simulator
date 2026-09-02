@@ -18,6 +18,9 @@ class GraphManager:
         self.light_history = []
         self.humidity_history = []
 
+        self.temperature_threshold = 30
+        self.light_threshold = 300
+
         self.setup_graphs()
 
     def setup_graphs(self):
@@ -53,6 +56,7 @@ class GraphManager:
             self.humidity_history.pop(0)
 
         self.draw_graphs()
+        
 
     def draw_graphs(self):
         self.ax.clear()
@@ -60,7 +64,7 @@ class GraphManager:
         self.ax2.clear()
 
         self.ax.plot(self.time_history, self.temperature_history)
-        self.ax.axhline(y=30, linestyle="--", label="High Temp Threshold")
+        self.ax.axhline(y = self.temperature_threshold, linestyle="--", label="High Temp Threshold")
         self.ax.set_title("Temperature Over Time")
         self.ax.set_ylabel("Temperature (°C)")
 
@@ -73,7 +77,7 @@ class GraphManager:
                 text.set_color("white")
         
         self.ax1.plot(self.time_history, self.light_history)
-        self.ax1.axhline(y=300, linestyle="--", label="Dark Threshold")
+        self.ax1.axhline(y = self.light_threshold, linestyle="--", label="Dark Threshold")
         self.ax1.set_title("Light Level Over Time")
         self.ax1.set_ylabel("Light Level")
 
@@ -115,3 +119,9 @@ class GraphManager:
 
             for spine in axis.spines.values():
                 spine.set_color("white")
+
+    def set_thresholds(self, temp_threshold, light_threshold):
+        self.temperature_threshold = temp_threshold
+        self.light_threshold = light_threshold
+        self.draw_graphs()
+
