@@ -14,32 +14,6 @@ void setup() {
     pinMode(LED_pin, OUTPUT);
 }
 
-bool isValidNumber(String value){
-    if (value.length() == 0){
-        return false;
-    }
-
-    bool decimalSeen = false;
-    bool digitSeen = false;
-    for(int i = 0; i<value.length(); i++){
-        char c = value[i];
-        if (c == '-' && i == 0){
-            continue;
-        }
-        if (c == '.' && !decimalSeen){
-            decimalSeen = true;
-            continue;
-        }
-
-        if(isDigit(c)){
-            digitSeen = true;
-            continue;
-        }
-        return false;
-    }
-    return digitSeen;
-}
-
 void updateSystem() {
     
     systemState = determineSystemState();
@@ -60,6 +34,22 @@ void updateSystem() {
     }
 
     sendsystemState();
+}
+
+state determineSystemState(){
+    if (systemState == FAULT){
+        return FAULT;
+    }
+    if (temperature > temp_threshold && lightLevel < light_threshold){
+        return OVERHEAT_DARK;
+    }
+    if (temperature > temp_threshold){
+        return OVERHEAT;
+    }
+    if (lightLevel < light_threshold){
+        return DARK;
+    }
+    return NORMAL;
 }
 
 void sendsystemState(){
@@ -83,6 +73,15 @@ void sendsystemState(){
             Serial.println("FAULT");
             break;
     }
+}
+
+void setFault(FaultCode newFault){
+    systemState = FAULT;
+    fault = newFault;
+
+    digitalWrite(LED_pin, LOW);
+
+    sendFault();
 }
 
 void sendFault(){
@@ -119,31 +118,31 @@ void sendFault(){
     }
 }
 
-void setFault(FaultCode newFault){
-    systemState = FAULT;
-    fault = newFault;
+bool isValidNumber(String value){
+    if (value.length() == 0){
+        return false;
+    }
 
-    digitalWrite(LED_pin, LOW);
+    bool decimalSeen = false;
+    bool digitSeen = false;
+    for(int i = 0; i<value.length(); i++){
+        char c = value[i];
+        if (c == '-' && i == 0){
+            continue;
+        }
+        if (c == '.' && !decimalSeen){
+            decimalSeen = true;
+            continue;
+        }
 
-    sendFault();
+        if(isDigit(c)){
+            digitSeen = true;
+            continue;
+        }
+        return false;
+    }
+    return digitSeen;
 }
-
-state determineSystemState(){
-    if (systemState == FAULT){
-        return FAULT;
-    }
-    if (temperature > temp_threshold && lightLevel < light_threshold){
-        return OVERHEAT_DARK;
-    }
-    if (temperature > temp_threshold){
-        return OVERHEAT;
-    }
-    if (lightLevel < light_threshold){
-        return DARK;
-    }
-    return NORMAL;
-}
-
 bool validateTemperature(String value, float& result){
     if(!isValidNumber(value)){
         setFault(INVALID_TEMP);
@@ -154,17 +153,6 @@ bool validateTemperature(String value, float& result){
         setFault(TEMP_RANGE);
         return false;
     }
-    return true;
-}
-
-bool handleTemperature(String data){
-    String value = data.substring(5);
-    float new_temperature;
-
-    if(!validateTemperature(value, new_temperature)){
-        return false;
-    }
-    temperature = new_temperature;
     return true;
 }
 
@@ -181,17 +169,6 @@ bool validateLight(String value, int& result){
     return true;
 }
 
-bool handleLight(String data){
-    String value = data.substring(6);
-    
-    int new_lightLevel;
-    if(!validateLight(value, new_lightLevel)){
-        return false;
-    }
-    lightLevel = new_lightLevel;
-    return true;
-}
-
 bool validateHumidity(String value, float& result){
     if(!isValidNumber(value)){
         setFault(INVALID_HUMIDITY);
@@ -202,17 +179,6 @@ bool validateHumidity(String value, float& result){
         setFault(HUMIDITY_RANGE);
         return false;
     }
-    return true;
-}
-bool handleHumidity(String data){
-    String value = data.substring(9);
-
-    float new_humidity;
-
-    if(!validateHumidity(value, new_humidity)){
-        return false;
-    }
-    humidity = new_humidity;
     return true;
 }
 
@@ -337,31 +303,10 @@ void handleCommand(String data){
         }
     }
 
-    else if (data.startsWith("TEMP:")){
-        if(!handleTemperature(data)){
-            return;
-        }
-    }
-
-    // Light message
-    else if (data.startsWith("LIGHT:")) {
-        if(!handleLight(data)){
-            return;
-        }
-    }
-
-    //Humidity message
-    else if (data.startsWith("HUMIDITY:")){
-        if(!handleHumidity(data)){
-            return;
-        }
-    }    
-
     else if(data.startsWith("QUIT")){
         handleQuit();
         return;
     }
-
 
     else if(data.startsWith("RESET")){
         handleReset();
