@@ -277,9 +277,7 @@ def send_manual_values():
                     f"Humidity: {humidity_value:.1f} %"
                 )
 
-        send_to_arduino("TEMP", f"{temp_value:.1f}")
-        send_to_arduino("LIGHT", light_value)
-        send_to_arduino("HUMIDITY", f"{humidity_value:.1f}")
+        send_to_arduino("SENSORS", f"{temp_value:.1f},{light_value},{humidity_value:.1f}")
 
         update_graphs(temp_value, light_value, humidity_value)
 
@@ -326,10 +324,7 @@ def update_sensors():
     light_label.setText(f"Light Level: {light}")
     humidity_label.setText(f"Humidity: {humidity:.1f}%")
 
-    send_to_arduino("TEMP", f"{temperature:.1f}")
-    send_to_arduino("LIGHT", light)
-    send_to_arduino("HUMIDITY", f"{humidity:.1f}")
-
+    send_to_arduino("SENSORS", f"{temperature:.1f},{light},{humidity:.1f}")
     update_graphs(temperature, light, humidity)
 
     if logging_active:
