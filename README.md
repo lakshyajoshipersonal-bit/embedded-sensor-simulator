@@ -98,3 +98,17 @@ pip install -r requirements.txt
 - Arduino / C++
 - CSV
 - Git and GitHub
+
+### Testing
+- Automated tests are included for the sensor simulation, scenario logic,
+CSV data logging, and serial communication.
+- Run the test suit from the 'pc' directory:
+```bash
+python -m pytest
+```
+- For detailed test output:
+```bash
+python -m pytest -v
+```
+- The test suite uses mocking to test serial communication without requiring
+a physical Arduino connection.
